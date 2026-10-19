@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>시운 - 실시간 시계</title>
+<style>
+  :root {
+    --clock-size: min(100%, 220px);
+    --ink: #171512;
+    --gold: #b7a77d;
+    --red: #d71920;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background: #f3f0e8;
+    color: var(--ink);
+    font-family: "Noto Serif KR", "Batang", "Malgun Gothic", serif;
+  }
+  /* 페이지의 붉은 박스 안에 들어갈 시계 영역 */
+  .clock-widget {
+    width: 100%;
+    max-width: 220px;
+    aspect-ratio: 1;
+    margin: 0 auto;
+    display: grid;
+    place-items: center;
+    position: relative;
+    background: transparent;
+  }
+  .clock {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    border-radius: 50%;
+    border: 1px solid #24221e;
+    background:
+      radial-gradient(circle at center, transparent 0 43%, rgba(0,0,0,.05) 43.5%, transparent 44%),
+      radial-gradient(circle, rgba(255,255,255,.2), rgba(0,0,0,.025));
+    box-shadow: 0 2px 5px rgba(0,0,0,.12), inset 0 0 0 4px rgba(255,255,255,.28), inset 0 0 0 5px #6e685b;
+  }
+  .clock::before {
+    content: "";
+    position: absolute;
+    inset: 6px;
+    border: 1px solid #33302a;
+    border-radius: 50%;
+  }
+  .clock::after {
+    content: "";
+    position: absolute;
+    inset: 15px;
+    border: 1px solid rgba(50,47,41,.65);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .ticks {
+    position: absolute;
+    inset: 9px;
+    border-radius: 50%;
+  }
+  .tick {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 1px;
+    height: 5px;
+    background: #26231e;
+    transform-origin: 50% calc(var(--clock-size) / 2 - 9px);
+  }
+  .numeral {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 28px;
+    height: 26px;
+    margin: -13px 0 0 -14px;
+    text-align: center;
+    line-height: 26px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(12px, 4.5vw, 17px);
+    font-weight: 700;
+    color: #171512;
+    transform: rotate(var(--counter-rotation)) translateY(calc(var(--clock-size) * -0.365));
+  }
+  .numeral.red { color: var(--red); }
+  .hand {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform-origin: 50% 100%;
+    border-radius: 99px;
+    z-index: 4;
+  }
+  .hour {
+    width: 5px;
+    height: 27%;
+    margin-left: -2.5px;
+    margin-top: -27%;
+    background: #181714;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.25);
+  }
+  .minute {
+    width: 3px;
+    height: 36%;
+    margin-left: -1.5px;
+    margin-top: -36%;
+    background: #28251f;
+  }
+  .second {
+    width: 1.5px;
+    height: 44%;
+    margin-left: -.75px;
+    margin-top: -44%;
+    background: var(--red);
+    z-index: 5;
+  }
+  .second::after {
+    content: "";
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    width: 1.5px;
+    height: 15px;
+    background: var(--red);
+    transform: translateX(-50%);
+  }
+  .center {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--red);
+    border: 1px solid #4a1717;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.5);
+    z-index: 6;
+  }
+  .ornament {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 5px;
+    height: 5px;
+    margin: -2.5px;
+    background: #1b1915;
+    transform: rotate(calc(var(--i) * 30deg)) translateY(calc(var(--clock-size) * -0.455));
+    border-radius: 50%;
+  }
+  @media (min-width: 500px) {
+    .clock-widget { max-width: 220px; }
+  }
+</style>
+</head>
+<body>
+  <main class="clock-widget" aria-label="실시간 아날로그 시계">
+    <div class="clock" id="clock">
+      <div class="ticks" id="ticks"></div>
+      <div id="numerals"></div>
+      <div id="ornaments"></div>
+      <div class="hand hour" id="hour-hand"></div>
+      <div class="hand minute" id="minute-hand"></div>
+      <div class="hand second" id="second-hand"></div>
+      <div class="center"></div>
+    </div>
+  </main>
+<script>
+  const tickLayer = document.getElementById('ticks');
+  for (let i = 0; i < 60; i++) {
+    const tick = document.createElement('span');
+    tick.className = 'tick';
+    tick.style.height = i % 5 === 0 ? '7px' : '4px';
+    tick.style.width = i % 5 === 0 ? '1.5px' : '1px';
+    tick.style.transform = `translateX(-50%) rotate(${i * 6}deg)`;
+    tick.style.transformOrigin = '50% 100px';
+    tickLayer.appendChild(tick);
+  }
+
+  const numeralLayer = document.getElementById('numerals');
+  // 숫자는 XII(12시), VI(6시)만 표시하고 붉은색으로 강조
+  const roman = [
+    { label: 'XII', angle: 0 },
+    { label: 'VI', angle: 180 }
+  ];
+  function placeNumerals() {
+    numeralLayer.innerHTML = '';
+    const size = document.getElementById('clock').clientWidth;
+    const radius = size * 0.365;
+    roman.forEach(({ label, angle }) => {
+      const n = document.createElement('div');
+      n.className = 'numeral red';
+      const rad = angle * Math.PI / 180;
+      const x = Math.sin(rad) * radius;
+      const y = -Math.cos(rad) * radius;
+      n.style.left = '50%';
+      n.style.top = '50%';
+      n.style.transform = `translate(-50%, -50%) translate(${x}px, ${y}px)`;
+      n.style.margin = '0';
+      n.textContent = label;
+      numeralLayer.appendChild(n);
+    });
+  }
+  placeNumerals();
+  window.addEventListener('resize', placeNumerals);
+
+  const ornamentLayer = document.getElementById('ornaments');
+  [0, 3, 6, 9].forEach(i => {
+    const o = document.createElement('span');
+    o.className = 'ornament';
+    o.style.transform = `rotate(${i * 30}deg) translateY(-${(220 * 0.455)}px)`;
+    ornamentLayer.appendChild(o);
+  });
+
+  function updateClock() {
+    const now = new Date();
+    const sec = now.getSeconds() + now.getMilliseconds() / 1000;
+    const min = now.getMinutes() + sec / 60;
+    const hr = (now.getHours() % 12) + min / 60;
+    document.getElementById('hour-hand').style.transform = `rotate(${hr * 30}deg)`;
+    document.getElementById('minute-hand').style.transform = `rotate(${min * 6}deg)`;
+    document.getElementById('second-hand').style.transform = `rotate(${sec * 6}deg)`;
+    requestAnimationFrame(updateClock);
+  }
+  updateClock();
+</script>
+</body>
+</html>
