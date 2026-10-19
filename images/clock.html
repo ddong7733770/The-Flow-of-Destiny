@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>실시간 앤티크 시계</title>
+<style>
+    /* 배경은 투명하게 설정하여 웹 어디든 얹기 좋게 함 */
+    body {
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: transparent;
+        overflow: hidden;
+    }
+
+    /* 시계 크기를 모바일 화면 및 레이아웃 비율에 맞춰 
+       직경 240px로 축소하고 (기존 400px), 반응형 유연성을 위해 max-width 추가 */
+    .clock-container {
+        position: relative;
+        width: 240px;
+        height: 240px;
+        max-width: 90vw; /* 작은 화면에서도 잘리지 않도록 함 */
+        max-height: 90vw;
+        border-radius: 50%;
+        background-color: #f6f3eb; /* 앤티크 아이보리 바탕색 */
+        /* 시계가 작아진 만큼 그림자 효과(그림자 반경 및 삽입 깊이)도 세밀하게 축소 */
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.1), 0 3px 6px rgba(0,0,0,0.12);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        user-select: none;
+    }
+
+    /* 시계판 내부의 디테일한 앤티크 장식 및 글자 */
+    .clock-face {
+        position: absolute;
+        width: 93%; /* 바깥 흰 여백을 제외하고 꽉 차게 */
+        height: 93%;
+        border-radius: 50%;
+        /* 바깥 이중 선 */
+        border: 1.2px solid #1a1a1a;
+        box-sizing: border-box;
+    }
+
+    /* 내부 미세 눈금선용 원 */
+    .clock-face::before {
+        content: '';
+        position: absolute;
+        top: 2%; left: 2%; right: 2%; bottom: 2%;
+        border: 0.6px solid #1a1a1a;
+        border-radius: 50%;
+    }
+
+    /* 내부 장식 원 */
+    .inner-ring {
+        position: absolute;
+        top: 23%; left: 23%; right: 23%; bottom: 23%;
+        border: 0.6px solid rgba(26,26,26,0.6);
+        border-radius: 50%;
+    }
+
+    /* 로마 숫자 장식 */
+    .numbers {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        font-family: "Times New Roman", Times, Georgia, serif;
+        font-weight: bold;
+        color: #b31010; /* 요청에 따라 붉은색(#b31010)으로 통일 */
+    }
+
+    .number {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        font-size: 18px; /* 크기를 18px로 유지 */
+        transform-origin: center;
+    }
+
+    /* 12시 6시 숫자 패딩 및 개별 위치 세부 조정 */
+    .number span {
+        display: inline-block;
+    }
+
+    /* 12시는 기존 바깥쪽 위 치우침 유지 */
+    .num12 span {
+        padding-top: 21px; 
+        transform: rotate(0deg);
+    }
+    
+    /* 6시 'Ⅵ' 위치를 폰트 사이즈(18px)만큼 위로(중앙 방향) 이동.
+       기존 rotate(180deg) 상태에서는 패딩을 더 많이 줄수록 원의 중심(위)으로 올라오게 됨.
+       기존 21px에서 약 폰트 크기(18px)만큼 더해진 '39px'로 패딩을 늘려 테두리에서 위로 껑충 올림 */
+    .num6 span {
+        padding-top: 39px; 
+        transform: rotate(-180deg);
+    }
+
+    /* 위치 설정 */
+    .num12 { transform: rotate(0deg); }   
+    .num6  { transform: rotate(180deg); } 
+
+    /* 눈금 도트 및 다이아몬드 포인트 (가장 바깥쪽 검은 다이아몬드 장식) */
+    .decorative-marks {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+    }
+    
+    /* 5분 단위 다이아몬드 마크 */
+    .mark {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        transform-origin: center;
+    }
+    .mark::before {
+        content: '◆';
+        font-size: 5px; /* 크기 축소 */
+        color: #111;
+        display: inline-block;
+        position: absolute;
+        top: -1px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    .m1 { transform: rotate(30deg); } .m2 { transform: rotate(60deg); } .m3 { transform: rotate(90deg); }
+    .m4 { transform: rotate(120deg); } .m5 { transform: rotate(150deg); } .m6 { transform: rotate(180deg); }
+    .m7 { transform: rotate(210deg); } .m8 { transform: rotate(240deg); } .m9 { transform: rotate(270deg); }
+    .m10 { transform: rotate(300deg); } .m11 { transform: rotate(330deg); } .m12 { transform: rotate(0deg); }
+
+    /* 중앙 장식 (가운데 앤티크 문양) */
+    .center-ornament-top {
+        position: absolute;
+        top: 32%;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px; /* 크기 축소 */
+        color: rgba(26,26,26,0.85);
+        font-family: serif;
+    }
+    .center-ornament-bottom {
+        position: absolute;
+        bottom: 32%;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 10px; /* 크기 축소 */
+        color: rgba(26,26,26,0.85);
+        font-family: serif;
+    }
+
+    /* 바늘 공통 속성 */
+    .hand {
+        position: absolute;
+        bottom: 50%;
+        left: 50%;
+        transform-origin: bottom center;
+        z-index: 10;
+        filter: drop-shadow(0 1.5px 2px rgba(0,0,0,0.3));
+    }
+
+    /* 시침 - 모바일 축소에 맞춰 길이 및 굵기 비례 조정 */
+    .hour-hand {
+        width: 10px; /* 16px -> 10px */
+        height: 57px; /* 95px -> 57px */
+        margin-left: -5px;
+        background-color: #111111;
+        /* 시침의 앤티크 잎사귀/스페이드 형상 유지 */
+        clip-path: polygon(50% 0%, 90% 25%, 70% 35%, 80% 60%, 55% 70%, 55% 100%, 45% 100%, 45% 70%, 20% 60%, 30% 35%, 10% 25%);
+    }
+
+    /* 분침 - 얇고 길쭉하게 뻗어나가는 디자인 축소 조정 */
+    .minute-hand {
+        width: 6px; /* 10px -> 6px */
+        height: 84px; /* 140px -> 84px */
+        margin-left: -3px;
+        background-color: #111111;
+        clip-path: polygon(50% 0%, 80% 15%, 60% 25%, 70% 70%, 55% 75%, 55% 100%, 45% 100%, 45% 75%, 30% 70%, 40% 25%, 20% 15%);
+    }
+
+    /* 초침 - 가늘고 긴 붉은색 바늘 (전통적인 카운터웨이트 포함) 축소 */
+    .second-hand {
+        width: 1.8px; /* 3px -> 1.8px */
+        height: 96px; /* 160px -> 96px */
+        margin-left: -0.9px;
+        background-color: #b31010; /* 차분하고 선명한 앤티크 레드 */
+        z-index: 20;
+    }
+    .second-hand::after {
+        content: '';
+        position: absolute;
+        bottom: -18px; /* -30px -> -18px */
+        left: 50%;
+        margin-left: -1.8px;
+        width: 3.6px;
+        height: 18px;
+        background-color: #b31010;
+        border-radius: 1.8px;
+    }
+
+    /* 중앙 고정 핀 (빨간색 초침의 중심 캡) */
+    .center-cap {
+        position: absolute;
+        width: 10px; /* 16px -> 10px */
+        height: 10px;
+        background-color: #b31010;
+        border-radius: 50%;
+        border: 1.5px solid #111;
+        z-index: 30;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+</style>
+</head>
+<body>
+
+<div class="clock-container">
+    <!-- 외각 다이아몬드 눈금 및 장식 -->
+    <div class="decorative-marks">
+        <div class="mark m1"></div><div class="mark m2"></div><div class="mark m3"></div>
+        <div class="mark m4"></div><div class="mark m5"></div><div class="mark m6"></div>
+        <div class="mark m7"></div><div class="mark m8"></div><div class="mark m9"></div>
+        <div class="mark m10"></div><div class="mark m11"></div><div class="mark m12"></div>
+    </div>
+
+    <!-- 원본 디자인의 내부 2중 선 및 미세 원 -->
+    <div class="clock-face">
+        <div class="inner-ring"></div>
+    </div>
+
+    <!-- 원본 중심 장식 문양 -->
+    <div class="center-ornament-top">❦</div>
+    <div class="center-ornament-bottom">❦</div>
+
+    <!-- 로마 숫자 XII, VI 만 붉은색으로 유지, 나머지는 모두 삭제 -->
+    <div class="numbers">
+        <div class="number num12"><span>Ⅻ</span></div>
+        <div class="number num6"><span>Ⅵ</span></div>
+    </div>
+
+    <!-- 시계 바늘 (시, 분, 초) -->
+    <div class="hand hour-hand" id="hour"></div>
+    <div class="hand minute-hand" id="minute"></div>
+    <div class="hand second-hand" id="second"></div>
+    
+    <!-- 중앙을 지탱하는 캡핀 -->
+    <div class="center-cap"></div>
+</div>
+
+<script>
+    function updateClock() {
+        const now = new Date();
+        const seconds = now.getSeconds();
+        const minutes = now.getMinutes();
+        const hours = now.getHours();
+
+        // 실시간 각도 반영
+        const secondDegrees = (seconds / 60) * 360;
+        const minuteDegrees = (minutes / 60) * 360 + (seconds / 60) * 6;
+        const hourDegrees = (hours / 12) * 360 + (minutes / 60) * 30;
+
+        document.getElementById('second').style.transform = `rotate(${secondDegrees}deg)`;
+        document.getElementById('minute').style.transform = `rotate(${minuteDegrees}deg)`;
+        document.getElementById('hour').style.transform = `rotate(${hourDegrees}deg)`;
+    }
+
+    // 초기 실행 및 1초 주기 업데이트
+    updateClock();
+    setInterval(updateClock, 1000);
+</script>
+
+</body>
+</html>
